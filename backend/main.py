@@ -68,11 +68,10 @@ async def found_item(profile_id: str, payload: LocationPayload):
         raise HTTPException(status_code=404, detail="Profil ikke fundet")
 
     address = await reverse_geocode(payload.latitude, payload.longitude)
-    maps_link = f"https://maps.google.com/?q={payload.latitude},{payload.longitude}"
 
     message = (
         f"Hej {profile['name']}, dit glemte tøj er fundet og kan hentes her: "
-        f"{address}, {maps_link}. Hilsen Prototypen"
+        f"{address}. Hilsen Prototypen"
     )
 
     await send_sms(profile["phone"], message)
