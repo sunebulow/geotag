@@ -26,9 +26,6 @@ PROFILES = {
     },
 }
 
-SURESMS_API_KEY = os.environ["SURESMS_API_KEY"]
-SURESMS_LOGIN = "apikey"
-
 
 class LocationPayload(BaseModel):
     profile_id: str
@@ -46,11 +43,14 @@ async def reverse_geocode(lat: float, lon: float) -> str:
 
 
 async def send_sms(phone: str, message: str):
+    api_key = os.environ.get("SURESMS_API_KEY")
+    if not api_key:
+        raise Exception("SURESMS_API_KEY er ikke sat")
     encoded_message = urllib.parse.quote(message)
     url = (
         f"https://api.suresms.com/Script/SendSMS.aspx"
-        f"?login={SURESMS_LOGIN}"
-        f"&password={SURESMS_API_KEY}"
+        f"?login=apikey"
+        f"&password={api_key}"
         f"&to={phone}"
         f"&Text={encoded_message}"
     )
