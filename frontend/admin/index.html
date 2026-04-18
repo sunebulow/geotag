@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geotag Admin</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      min-height: 100vh;
+      padding: 40px 20px;
+    }
+    .login-card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px 32px;
+      max-width: 360px;
+      margin: 80px auto;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    .login-card h1 { font-size: 20px; font-weight: 600; margin-bottom: 24px; color: #1a1a1a; }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 16px;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      margin-bottom: 12px;
+    }
+    input:focus { outline: none; border-color: #2563eb; }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+    }
+    button:hover { background: #1d4ed8; }
+    .error { color: #dc2626; font-size: 14px; margin-top: 8px; }
+    .admin-view { max-width: 800px; margin: 0 auto; display: none; }
+    .admin-view h1 { font-size: 22px; font-weight: 600; color: #1a1a1a; margin-bottom: 24px; }
+    table { width: 100%; background: white; border-radius: 12px; overflow: hidden; box-shadow: 0 2px 12px rgba(0,0,0,0.06); border-collapse: collapse; }
+    th { background: #f8f8f8; padding: 14px 16px; text-align: left; font-size: 13px; font-weight: 500; color: #888; border-bottom: 1px solid #eee; }
+    td { padding: 14px 16px; font-size: 15px; color: #1a1a1a; border-bottom: 1px solid #f0f0f0; }
+    tr:last-child td { border-bottom: none; }
+    .count { color: #888; font-size: 14px; margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+
+  <div class="login-card" id="login-view">
+    <h1>Geotag Admin</h1>
+    <input type="password" id="password" placeholder="Password" />
+    <button onclick="login()">Log ind</button>
+    <div class="error" id="login-error"></div>
+  </div>
+
+  <div class="admin-view" id="admin-view">
+    <h1>Registrerede kunder</h1>
+    <div class="count" id="count"></div>
+    <table>
+      <thead>
+        <tr>
+          <th>Kunde ID</th>
+          <th>Telefonnummer</th>
+          <th>Oprettet</th>
+        </tr>
+      </thead>
+      <tbody id="customer-list"></tbody>
+    </table>
+  </div>
+
+  <script>
+    const BACKEND_URL = "https://api.geotag.dk";
+    let savedPassword = "";
+
+    async function login() {
+      const password = document.getElementById("password").value;
+      if (!password) return;
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/admin/customers`, {
+          headers: {
+            "Authorization": "Basic " + btoa("admin:" + password)
+          }
+        });
+
+        if (res.status === 401) {
+          document.getElementById("login-error").textContent = "Forkert password";
+          return;
+        }
+
+        if (!res.ok) throw new Error("Fejl");
+
+        savedPassword = password;
+        const customers = await res.json();
+        showCustomers(customers);
+      } catch {
+        document.getElementById("login-error").textContent = "Noget gik galt. Prøv igen.";
+      }
+    }
+
+    function showCustomers(customers) {
+      document.getElementById("login-view").style.display = "none";
+      document.getElementById("admin-view").style.display = "block";
+      document.getElementById("count").textContent = `${customers.length} kunder registreret`;
+
+      const tbody = document.getElementById("customer-list");
+      tbody.innerHTML = customers.map(c => `
+        <tr>
+          <td>${c.id}</td>
+          <td>${c.phone}</td>
+          <td>${new Date(c.created_at).toLocaleString("da-DK")}</td>
+        </tr>
+      `).join("");
+    }
+
+    document.getElementById("password").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") login();
+    });
+  </script>
+</body>
+</html>

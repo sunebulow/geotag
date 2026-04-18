@@ -1,5 +1,7 @@
 {
   "rewrites": [
-    { "source": "/found/:id", "destination": "/found/[id]/index.html" }
+    { "source": "/found/(.*)", "destination": "/found/index.html" },
+    { "source": "/create", "destination": "/create/index.html" },
+    { "source": "/admin", "destination": "/admin/index.html" }
   ]
 }

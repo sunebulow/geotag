@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="da">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Geotag QR</title>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+      background: #f5f5f5;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    .card {
+      background: white;
+      border-radius: 16px;
+      padding: 40px 32px;
+      max-width: 360px;
+      width: 100%;
+      text-align: center;
+      box-shadow: 0 4px 24px rgba(0,0,0,0.08);
+    }
+    input {
+      width: 100%;
+      padding: 12px 16px;
+      font-size: 18px;
+      border: 1.5px solid #ddd;
+      border-radius: 10px;
+      margin-bottom: 12px;
+      text-align: center;
+      letter-spacing: 1px;
+    }
+    input:focus { outline: none; border-color: #2563eb; }
+    button {
+      background: #2563eb;
+      color: white;
+      border: none;
+      border-radius: 10px;
+      padding: 12px 28px;
+      font-size: 16px;
+      font-weight: 500;
+      cursor: pointer;
+      width: 100%;
+      margin-bottom: 8px;
+    }
+    button:hover { background: #1d4ed8; }
+    button:disabled { background: #93c5fd; cursor: not-allowed; }
+    #qr-container { margin: 24px auto 0; display: none; }
+    #qr-container canvas, #qr-container img { margin: 0 auto; display: block; }
+    #download-btn {
+      background: #16a34a;
+      margin-top: 16px;
+      display: none;
+    }
+    #download-btn:hover { background: #15803d; }
+    .error { color: #dc2626; font-size: 14px; margin-top: 8px; }
+  </style>
+</head>
+<body>
+  <div class="card">
+    <input type="tel" id="phone" placeholder="+4512345678" />
+    <button id="generate-btn" onclick="generate()">Generer QR</button>
+    <div id="error" class="error"></div>
+    <div id="qr-container"></div>
+    <button id="download-btn" onclick="download()">Download QR</button>
+  </div>
+
+  <script>
+    const BACKEND_URL = "https://api.geotag.dk";
+    let currentPhone = "";
+    let currentId = "";
+
+    function setError(msg) {
+      document.getElementById("error").textContent = msg;
+    }
+
+    async function generate() {
+      const phone = document.getElementById("phone").value.trim();
+      if (!phone) { setError("Indtast et telefonnummer"); return; }
+      setError("");
+
+      const btn = document.getElementById("generate-btn");
+      btn.disabled = true;
+      btn.textContent = "Opretter...";
+
+      try {
+        const res = await fetch(`${BACKEND_URL}/customers`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone }),
+        });
+
+        if (!res.ok) throw new Error("Fejl ved oprettelse");
+        const data = await res.json();
+        currentId = data.id;
+        currentPhone = phone;
+
+        const url = `https://geotag.dk/found/${currentId}`;
+        const container = document.getElementById("qr-container");
+        container.innerHTML = "";
+        container.style.display = "block";
+
+        new QRCode(container, {
+          text: url,
+          width: 256,
+          height: 256,
+          colorDark: "#000000",
+          colorLight: "#ffffff",
+          correctLevel: QRCode.CorrectLevel.H,
+        });
+
+        document.getElementById("download-btn").style.display = "block";
+      } catch (e) {
+        setError("Noget gik galt. Prøv igen.");
+      } finally {
+        btn.disabled = false;
+        btn.textContent = "Generer QR";
+      }
+    }
+
+    function download() {
+      const canvas = document.querySelector("#qr-container canvas");
+      if (!canvas) return;
+      const link = document.createElement("a");
+      link.download = `geotag-${currentId}.png`;
+      link.href = canvas.toDataURL("image/png");
+      link.click();
+    }
+
+    document.getElementById("phone").addEventListener("keydown", (e) => {
+      if (e.key === "Enter") generate();
+    });
+  </script>
+</body>
+</html>
