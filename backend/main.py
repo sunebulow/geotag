@@ -27,14 +27,6 @@ SURESMS_API_KEY = os.environ.get("SURESMS_API_KEY", "")
 
 # --- Database setup ---
 
-async def get_db():
-    conn = await asyncpg.connect(DATABASE_URL)
-    try:
-        yield conn
-    finally:
-        await conn.close()
-
-
 @app.on_event("startup")
 async def startup():
     conn = await asyncpg.connect(DATABASE_URL)
@@ -67,7 +59,25 @@ def generate_id() -> str:
     return ''.join(random.choices(string.digits, k=6))
 
 
-async def reverse_geocode(lat: float, lon: float) -> dict:
+def normalize_phone(phone: str) -> str:
+    # Strip mellemrum, bindestreger, parenteser og punktummer
+    cleaned = phone.replace(" ", "").replace("-", "").replace("(", "").replace(")", "").replace(".", "")
+    # Håndter forskellige formater
+    if cleaned.startswith("00"):
+        cleaned = "+" + cleaned[2:]
+    elif cleaned.startswith("+"):
+        pass  # allerede korrekt format
+    elif len(cleaned) == 8:
+        # Dansk nummer uden landekode (8 cifre)
+        cleaned = "+45" + cleaned
+    elif cleaned.startswith("45") and len(cleaned) == 10:
+        cleaned = "+" + cleaned
+    else:
+        cleaned = "+45" + cleaned
+    return cleaned
+
+
+async def reverse_geocode(lat: float, lon: float) -> str:
     url = f"https://nominatim.openstreetmap.org/reverse?lat={lat}&lon={lon}&format=json"
     headers = {"User-Agent": "GeoTag/1.0"}
     async with httpx.AsyncClient() as client:
@@ -116,9 +126,9 @@ class LocationPayload(BaseModel):
 
 @app.post("/customers")
 async def create_customer(payload: CreateCustomerPayload):
+    normalized = normalize_phone(payload.phone)
     conn = await asyncpg.connect(DATABASE_URL)
     try:
-        # Generer unikt 6-cifret ID
         for _ in range(10):
             new_id = generate_id()
             existing = await conn.fetchrow("SELECT id FROM customers WHERE id = $1", new_id)
@@ -126,9 +136,9 @@ async def create_customer(payload: CreateCustomerPayload):
                 break
         await conn.execute(
             "INSERT INTO customers (id, phone) VALUES ($1, $2)",
-            new_id, payload.phone
+            new_id, normalized
         )
-        return {"id": new_id, "phone": payload.phone}
+        return {"id": new_id, "phone": normalized}
     finally:
         await conn.close()
 
